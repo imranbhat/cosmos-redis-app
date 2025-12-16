@@ -14,26 +14,34 @@ spring:
       lettuce:
         pool:
           enabled: true
-          max-active: 16
-          max-idle: 8
-          min-idle: 4
-          max-wait: 1000ms
+          max-active: 50 # Increased for high traffic (20M/day)
+          max-idle: 25
+          min-idle: 10
+          max-wait: 500ms # Fail fast
 
   # Cache Configuration
   cache:
     type: redis
     redis:
-      time-to-live: 300000  # Default 5 minutes
+      time-to-live: 300000 # Default 5 minutes
       cache-null-values: false
       use-key-prefix: true
       key-prefix: "app:v1:"
 
-# Custom Cache TTL per domain (in seconds)
+# L1 Cache (Caffeine) - Local, per-node
 cache:
+  l1:
+    max-size: 10000 # Max entries per cache
+    ttl:
+      reference-data: 60 # 1 minute (shorter than L2)
+      user-data: 30 # 30 seconds
+      api-response: 10 # 10 seconds
+
+  # L2 Cache (Redis) - Distributed
   ttl:
-    reference-data: 3600    # 1 hour
-    user-data: 300          # 5 minutes
-    api-response: 30        # 30 seconds
+    reference-data: 3600 # 1 hour
+    user-data: 300 # 5 minutes
+    api-response: 30 # 30 seconds
 
 # Actuator Configuration
 management:
