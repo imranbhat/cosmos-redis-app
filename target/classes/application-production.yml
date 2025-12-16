@@ -1,0 +1,39 @@
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: production
+
+  data:
+    redis:
+      # Redis Cluster Configuration (2 masters + 2 replicas)
+      cluster:
+        nodes:
+          - ${REDIS_NODE_1:redis-node-1:6379}
+          - ${REDIS_NODE_2:redis-node-2:6379}
+          - ${REDIS_NODE_3:redis-node-3:6379}
+          - ${REDIS_NODE_4:redis-node-4:6379}
+        max-redirects: 3
+      password: ${REDIS_PASSWORD}
+      timeout: 3000ms
+      connect-timeout: 3000ms
+      # TLS Configuration
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}
+      lettuce:
+        pool:
+          max-active: 32
+          max-idle: 16
+          min-idle: 8
+          max-wait: 2000ms
+        cluster:
+          refresh:
+            adaptive: true
+            period: 30000ms
+
+# Production logging
+logging:
+  level:
+    com.example.redis: INFO
+    org.springframework.cache: WARN
+    io.lettuce: WARN

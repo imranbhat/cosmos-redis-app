@@ -1,0 +1,63 @@
+# Application Configuration
+spring:
+  application:
+    name: spring-boot-redis-app
+
+  # Default Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+          max-wait: 1000ms
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000  # Default 5 minutes
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "app:v1:"
+
+# Custom Cache TTL per domain (in seconds)
+cache:
+  ttl:
+    reference-data: 3600    # 1 hour
+    user-data: 300          # 5 minutes
+    api-response: 30        # 30 seconds
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,caches,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+
+# Server Configuration
+server:
+  port: 8080
+
+# Logging
+logging:
+  level:
+    com.example.redis: INFO
+    org.springframework.cache: DEBUG
+    io.lettuce: INFO
