@@ -1,0 +1,255 @@
+version: "3.8"
+
+# Redis Cluster Setup: 3 Masters + 3 Replicas (minimum for Redis Cluster)
+# Run with: docker-compose -f docker-compose-sit.yml up -d
+
+services:
+  # Master 1
+  redis-node-1:
+    image: redis:7.2-alpine
+    container_name: redis-node-1
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly no
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis-node-1-data:/data
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.11
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Master 2
+  redis-node-2:
+    image: redis:7.2-alpine
+    container_name: redis-node-2
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly no
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis-node-2-data:/data
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.12
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Master 3
+  redis-node-3:
+    image: redis:7.2-alpine
+    container_name: redis-node-3
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly no
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6383:6379"
+    volumes:
+      - redis-node-3-data:/data
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.13
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Replica 1 (for Master 1)
+  redis-node-4:
+    image: redis:7.2-alpine
+    container_name: redis-node-4
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly no
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6384:6379"
+    volumes:
+      - redis-node-4-data:/data
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.14
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Replica 2 (for Master 2)
+  redis-node-5:
+    image: redis:7.2-alpine
+    container_name: redis-node-5
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly no
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6385:6379"
+    volumes:
+      - redis-node-5-data:/data
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.15
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Replica 3 (for Master 3)
+  redis-node-6:
+    image: redis:7.2-alpine
+    container_name: redis-node-6
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly no
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6386:6379"
+    volumes:
+      - redis-node-6-data:/data
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.16
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Redis Exporter - Scrapes metrics from Redis nodes
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    environment:
+      - REDIS_ADDR=redis://10.100.0.11:6379,redis://10.100.0.12:6379,redis://10.100.0.13:6379,redis://10.100.0.14:6379,redis://10.100.0.15:6379,redis://10.100.0.16:6379
+    ports:
+      - "9121:9121"
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.20
+    depends_on:
+      redis-node-1:
+        condition: service_healthy
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus-sit
+    ports:
+      - "9099:9090"
+    volumes:
+      - ./monitoring/prometheus-sit.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.21
+    depends_on:
+      - redis-exporter
+
+  # Grafana - Visualization dashboards
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: grafana-sit
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.22
+
+  # Cluster initializer
+  redis-cluster-init:
+    image: redis:7.2-alpine
+    container_name: redis-cluster-init
+    depends_on:
+      redis-node-1:
+        condition: service_healthy
+      redis-node-2:
+        condition: service_healthy
+      redis-node-3:
+        condition: service_healthy
+      redis-node-4:
+        condition: service_healthy
+      redis-node-5:
+        condition: service_healthy
+      redis-node-6:
+        condition: service_healthy
+    command: >
+      sh -c "echo 'Creating Redis Cluster (3 masters + 3 replicas)...' && sleep 5 && redis-cli --cluster create 10.100.0.11:6379 10.100.0.12:6379 10.100.0.13:6379 10.100.0.14:6379 10.100.0.15:6379 10.100.0.16:6379 --cluster-replicas 1 --cluster-yes && echo 'Cluster created!' && redis-cli -h 10.100.0.11 cluster info && redis-cli -h 10.100.0.11 cluster nodes"
+    networks:
+      redis-cluster:
+        ipv4_address: 10.100.0.10
+
+volumes:
+  redis-node-1-data:
+  redis-node-2-data:
+  redis-node-3-data:
+  redis-node-4-data:
+  redis-node-5-data:
+  redis-node-6-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  redis-cluster:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.0.0/16

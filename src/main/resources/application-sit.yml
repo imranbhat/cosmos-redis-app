@@ -1,0 +1,34 @@
+# SIT (System Integration Testing) Profile - connects to Redis Cluster
+spring:
+  config:
+    activate:
+      on-profile: sit
+
+  data:
+    redis:
+      cluster:
+        nodes:
+          - localhost:6381
+          - localhost:6382
+          - localhost:6383
+          - localhost:6384
+          - localhost:6385
+          - localhost:6386
+        max-redirects: 3
+      timeout: 3000ms
+      connect-timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 25
+          min-idle: 10
+          max-wait: 500ms
+        cluster:
+          refresh:
+            adaptive: true
+            period: 30000ms
+
+logging:
+  level:
+    com.example.redis: DEBUG
+    io.lettuce.core.cluster: DEBUG
