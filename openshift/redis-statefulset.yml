@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster
+  labels:
+    app: redis-cluster
+spec:
+  serviceName: redis-cluster
+  replicas: 6
+  selector:
+    matchLabels:
+      app: redis-cluster
+  template:
+    metadata:
+      labels:
+        app: redis-cluster
+    spec:
+      containers:
+        - name: redis
+          image: registry.redhat.io/rhel9/redis-7
+          ports:
+            - containerPort: 6379
+              name: client
+            - containerPort: 16379
+              name: gossip
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              if [ -f /data/nodes.conf ]; then
+                redis-server --cluster-enabled yes --cluster-config-file /data/nodes.conf --appendonly yes
+              else
+                redis-server --cluster-enabled yes --cluster-config-file /data/nodes.conf --appendonly yes
+              fi
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster
+  labels:
+    app: redis-cluster
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: client
+    - port: 16379
+      targetPort: 16379
+      name: gossip
+  clusterIP: None
+  selector:
+    app: redis-cluster

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-boot-redis-app
+  labels:
+    app: spring-boot-redis-app
+    env: sit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spring-boot-redis-app
+  template:
+    metadata:
+      labels:
+        app: spring-boot-redis-app
+    spec:
+      containers:
+        - name: spring-boot-redis-app
+          image: image-registry.openshift-image-registry.svc:5000/sit-namespace/spring-boot-redis-app:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "sit"
+            - name: SPRING_DATA_REDIS_CLUSTER_NODES
+              value: "redis-cluster-0.redis-cluster.sit-namespace.svc.cluster.local:6379,redis-cluster-1.redis-cluster.sit-namespace.svc.cluster.local:6379,redis-cluster-2.redis-cluster.sit-namespace.svc.cluster.local:6379,redis-cluster-3.redis-cluster.sit-namespace.svc.cluster.local:6379,redis-cluster-4.redis-cluster.sit-namespace.svc.cluster.local:6379,redis-cluster-5.redis-cluster.sit-namespace.svc.cluster.local:6379"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
